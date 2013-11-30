@@ -379,7 +379,10 @@ public class ErlangPsiImplUtil {
   public static PsiReference getReference(@NotNull ErlangMacros o) {
     ErlangMacrosName macrosName = o.getMacrosName();
     if (macrosName == null) return null;
-    return new ErlangMacrosReferenceImpl<ErlangMacrosName>(macrosName);
+
+    ErlangMacroCallArgumentList argList = o.getMacroCallArgumentList();
+    int arity = argList == null ? -1 : argList.getArgumentList().getExpressionList().size();
+    return new ErlangMacrosReferenceImpl<ErlangMacrosName>(macrosName, arity);
   }
 
   @Nullable
@@ -633,7 +636,7 @@ public class ErlangPsiImplUtil {
   @NotNull
   public static List<LookupElement> getMacrosLookupElements(@NotNull PsiFile containingFile) {
     if (containingFile instanceof ErlangFile) {
-      List<ErlangMacrosDefinition> concat = ContainerUtil.concat(((ErlangFile) containingFile).getMacroses(), getErlangMacrosFromIncludes((ErlangFile) containingFile, true, ""));
+      List<ErlangMacrosDefinition> concat = ContainerUtil.concat(((ErlangFile) containingFile).getMacroses(), getErlangMacrosFromIncludes((ErlangFile) containingFile, true, "", 0));
       List<LookupElement> fromFile = ContainerUtil.map(
         concat,
         new Function<ErlangMacrosDefinition, LookupElement>() {
@@ -1142,11 +1145,12 @@ public class ErlangPsiImplUtil {
   @NotNull
   static List<ErlangMacrosDefinition> getErlangMacrosFromIncludes(@NotNull ErlangFile containingFile,
                                                                   boolean forCompletion,
-                                                                  @NotNull String name) {
+                                                                  @NotNull String name,
+                                                                  int arity) {
     List<ErlangMacrosDefinition> fromIncludes = ContainerUtil.newArrayList();
     for (ErlangFile file : getIncludedFiles(containingFile)) {
       if (!forCompletion) {
-        ContainerUtil.addIfNotNull(fromIncludes, file.getMacros(name));
+        ContainerUtil.addIfNotNull(fromIncludes, file.getMacros(name, arity));
       }
       else {
         fromIncludes.addAll(file.getMacroses());
@@ -1248,6 +1252,11 @@ public class ErlangPsiImplUtil {
       setName(macrosName, newName);
     }
     return o;
+  }
+
+  public static int getArity(ErlangMacrosDefinition macrosDefinition) {
+    ErlangArgumentDefinitionList argumentDefinitionList = macrosDefinition.getArgumentDefinitionList();
+    return argumentDefinitionList == null ? -1 : argumentDefinitionList.getArgumentDefinitionList().size();
   }
 
   public static void setName(@NotNull ErlangMacrosName macroName, @NotNull String newName) {
